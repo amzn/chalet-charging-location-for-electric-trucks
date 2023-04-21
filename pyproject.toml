@@ -1,0 +1,52 @@
+[build-system]
+requires = [
+    "setuptools >= 42",
+    "wheel",
+]
+build-backend = "setuptools.build_meta"
+
+[tool.mypy]
+check_untyped_defs = true
+show_error_codes = true
+pretty = true
+ignore_missing_imports = true
+
+[tool.black]
+line-length = 120
+
+[tool.isort]
+profile = "black"
+line_length = 120
+known_first_party = [ "chalet" ]
+src_paths = [
+    "src",
+]
+
+[tool.pytest.ini_options]
+addopts = [
+    "--durations=5",
+    "--color=yes",
+    "--cov=chalet",
+    "--cov-report=term-missing",
+    "--cov-report=xml:build/lib/private/coverage/coverage.xml"
+]
+testpaths = [ "src/tests" ]
+
+[tool.coverage.run]
+branch = true
+parallel = true
+omit = [
+    "*/log_config/*",
+    "*/exception/*"
+    ]
+
+[tool.coverage.paths]
+source =  [
+    "src/",
+    ".tox/*/lib/*/site-packages/"
+]
+
+[tool.coverage.report]
+show_missing = true
+# Uncomment the following line to fail to build when the coverage is too low
+# fail_under = 99
