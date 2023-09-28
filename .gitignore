@@ -1,0 +1,6 @@
+*.egg-info/
+__pycache__/
+.coverage
+.tox
+.venv
+src/tests/end2end/output_data/
