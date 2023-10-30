@@ -26,7 +26,7 @@ def time_feasible_path(graph: nx.Graph, orig: int, dest: int, max_road_time: flo
 
     if path_time == INF_VALUE:
         return []
-    # If path time doesn't satisfy the road time bound, check for total time bound
+    # If path time bound is not satisfied, check for fastest road time path with total time as constraint
     if path_time > max_time:
         path, path_road_time = _time_bounded_fastest_road_path(graph, orig, dest, max_time)
         if path_road_time > max_road_time:
@@ -179,9 +179,15 @@ def time_feasible_cheapest_path(
         path_road_time += arc_road_time(path[i], path[i + 1], graph.edges[path[i], path[i + 1]])
 
     if path_road_time > max_road_time:
-        return [], INF_VALUE
-    else:
-        return path, path_cost
+        # fallback to finding any feasible path disregarding cost
+        path = time_feasible_path(graph, orig, dest, max_road_time, max_time)
+        if not path:
+            return [], INF_VALUE
+        path_cost = 0.0
+        for i in range(1, len(path)):
+            path_cost += _arc_cost(graph, path[i])
+
+    return path, path_cost
 
 
 def _time_bounded_cheapest_path(graph: nx.DiGraph, orig: int, dest: int, max_time: float) -> Tuple[List[int], float]:
