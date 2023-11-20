@@ -42,7 +42,7 @@ class TestMipHelper(unittest.TestCase):
     @patch("networkx.set_node_attributes")
     @patch(get_path_module(csp.time_feasible_cheapest_path), return_value=([0, 1], 5.0))
     def test_get_path_attributes(self, mock_csp_cheapest_path, mock_nx_set_node_attributes):
-        path, cost = helper.get_path_attributes(OD_PAIRS, 0, SUB_GRAPHS, NODES, [0])
+        path, cost = helper.get_cheapest_path(OD_PAIRS, 0, SUB_GRAPHS, NODES, [0])
         mock_csp_cheapest_path.assert_called_with(SUB_GRAPHS[0], 0, 1, 3.0, 5.0)
         self.assertListEqual(path, [0, 1])
         self.assertEqual(cost, 5.0)

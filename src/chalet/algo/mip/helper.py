@@ -110,7 +110,7 @@ def _add_separator(
         separator_set.update(separator)
 
 
-def get_path_attributes(od_pairs, index, subgraphs, nodes, sol_set):
+def get_cheapest_path(od_pairs, index, subgraphs, nodes, sol_set):
     orig, dest = od_pairs.at[index, OdPairs.origin_id], od_pairs.at[index, OdPairs.destination_id]
     max_time, max_road_time = (
         od_pairs.at[index, OdPairs.max_time],

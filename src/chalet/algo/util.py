@@ -71,7 +71,7 @@ def remove_redundancy(solution, nodes, subgraphs, od_pairs, ignore=None):
 
     paths = np.empty(len(subgraphs), dtype=object)
     for k in subgraph_indices:
-        path = get_path_attributes(subgraphs[k], k, od_pairs, is_real_filter)
+        path = get_feasible_path(subgraphs[k], k, od_pairs, is_real_filter)
         if not path:
             continue
         paths[k] = path
@@ -104,7 +104,7 @@ def _update_substitute_paths(
             if paths[k] is None or node not in paths[k]:
                 continue
 
-            path = get_path_attributes(subgraphs[k], k, od_pairs, filter_func)
+            path = get_feasible_path(subgraphs[k], k, od_pairs, filter_func)
             if not path:
                 remove = False
                 break
@@ -134,7 +134,7 @@ def check_pair_coverage(nodes, subgraphs, od_pairs):
         return is_dummy(u) or nodes.at[u, Nodes.real] or not is_candidate(u)
 
     for k in range(num_pairs):
-        path = get_path_attributes(subgraphs[k], k, od_pairs, filter_func)
+        path = get_feasible_path(subgraphs[k], k, od_pairs, filter_func)
         if not path:
             continue
 
@@ -681,7 +681,7 @@ def _set_integer_solution(
             problem.addmipsol(y)
 
 
-def get_path_attributes(sub_graph, index, od_pairs, filter_func):
+def get_feasible_path(sub_graph, index, od_pairs, filter_func):
     """Get a time feasible path based on road time and max road time bounds."""
     orig, dest = od_pairs.at[index, OdPairs.origin_id], od_pairs.at[index, OdPairs.destination_id]
     max_time, max_road_time = (
@@ -762,7 +762,7 @@ def calc_station_stats(
         return is_real_node(u) or not is_candidate(u)
 
     for k in range(num_pairs):
-        path = get_path_attributes(subgraphs[k], k, od_pairs, filter_func)
+        path = get_feasible_path(subgraphs[k], k, od_pairs, filter_func)
         if not path:
             continue
 

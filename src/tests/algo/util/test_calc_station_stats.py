@@ -16,7 +16,7 @@ def mock_get_path_attributes():
     return
 
 
-@patch.object(util, "get_path_attributes", side_effect=[[1, 5, 6, 2], [2, 7, 8, 3], [3, 4]])
+@patch.object(util, "get_feasible_path", side_effect=[[1, 5, 6, 2], [2, 7, 8, 3], [3, 4]])
 def test_calc_station_stats(patch_object):
     battery_capacity = 540
     terminal_range = 125.0

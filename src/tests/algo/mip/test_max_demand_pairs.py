@@ -79,14 +79,14 @@ class TestMipMaxDemandPairs(unittest.TestCase):
         model.getSolution.assert_called()
         model.solve.assert_called_once()
 
-    @patch(get_path_module(helper.get_path_attributes), return_value=([0, 1], 5.0))
+    @patch(get_path_module(helper.get_cheapest_path), return_value=([0, 1], 5.0))
     @patch(get_path_module(helper.is_candidate), return_value=True)
     def test_construct_initial_solution_with_station_nodes(self, mock_is_candidate, mock_path_attributes):
         model = Mock()
         max_demand._construct_initial_solution(model, CANDIDATES, NODES, OD_PAIRS, [0], SUB_GRAPHS, 10.0)
         model.addmipsol.assert_called_with([1, 1, 1])
 
-    @patch(get_path_module(helper.get_path_attributes), return_value=([0, 1], 11.0))
+    @patch(get_path_module(helper.get_cheapest_path), return_value=([0, 1], 11.0))
     @patch(get_path_module(helper.is_candidate), return_value=True)
     def test_construct_initial_solution_with_higher_min_cost(self, mock_is_candidate, mock_path_attributes):
         model = Mock()
@@ -95,14 +95,14 @@ class TestMipMaxDemandPairs(unittest.TestCase):
         max_demand._construct_initial_solution(model, CANDIDATES, nodes, OD_PAIRS, [0], SUB_GRAPHS, 10.0)
         model.addmipsol.assert_called_with([0, 0, 0])
 
-    @patch(get_path_module(helper.get_path_attributes), return_value=([0, 1], 20.0))
+    @patch(get_path_module(helper.get_cheapest_path), return_value=([0, 1], 20.0))
     @patch(get_path_module(helper.is_candidate), return_value=True)
     def test_construct_initial_solution_with_higher_path_cost(self, mock_is_candidate, mock_path_attributes):
         model = Mock()
         max_demand._construct_initial_solution(model, CANDIDATES, NODES, OD_PAIRS, [0], SUB_GRAPHS, 10.0)
         model.addmipsol.assert_called_with([0, 0, 0])
 
-    @patch(get_path_module(util.get_path_attributes), return_value=[0])
+    @patch(get_path_module(util.get_feasible_path), return_value=[0])
     def test_check_int_sol(self, mock_path_attributes):
         model = Mock()
         problem = Mock()
@@ -115,7 +115,7 @@ class TestMipMaxDemandPairs(unittest.TestCase):
         max_demand._check_int_sol(problem, model, DEMAND_VARS, OD_PAIRS, NODES, STATION_VARS, [0], SUB_GRAPHS)
         problem.loadmipsol.assert_called_once()
 
-    @patch(get_path_module(util.get_path_attributes), return_value=None)
+    @patch(get_path_module(util.get_feasible_path), return_value=None)
     def test_check_int_sol_without_path(self, mock_path_attributes):
         model = Mock()
         problem = Mock()

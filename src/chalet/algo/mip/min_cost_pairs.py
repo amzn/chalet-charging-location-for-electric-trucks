@@ -81,7 +81,7 @@ def _construct_initial_solution(model, candidates, nodes, od_pairs, subgraph_ind
     logger.info("Running heuristic for initial solution.")
     sol_set: Set = set()
     for k in subgraph_indices:
-        path, path_cost = helper.get_path_attributes(od_pairs, k, subgraphs, nodes, sol_set)
+        path, path_cost = helper.get_cheapest_path(od_pairs, k, subgraphs, nodes, sol_set)
         candidate_nodes = [u for u in path if helper.is_candidate(u, nodes)]
         sol_set.update(candidate_nodes)
 

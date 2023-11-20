@@ -108,7 +108,7 @@ def _construct_initial_solution(model, candidates, nodes, od_pairs, subgraph_ind
     sorted_index = od_pairs.loc[subgraph_indices].sort_values(OdPairs.demand, ascending=False).index
     for index in sorted_index:
         demand = od_pairs.at[index, OdPairs.demand]
-        path, path_cost = helper.get_path_attributes(od_pairs, index, subgraphs, nodes, sol)
+        path, path_cost = helper.get_cheapest_path(od_pairs, index, subgraphs, nodes, sol)
         if init_cost + path_cost > cost_budget:
             continue
 
@@ -240,7 +240,7 @@ def _pre_check_int_sol(
         if obj < best_obj:
             return True, None
 
-        path = util.get_path_attributes(subgraphs[k], k, od_pairs, sol_filter)
+        path = util.get_feasible_path(subgraphs[k], k, od_pairs, sol_filter)
         demand = od_pairs.at[k, OdPairs.demand]
 
         if not path:
@@ -273,7 +273,7 @@ def _check_int_sol(problem, model, demand_vars, od_pairs, nodes, station_vars, s
         if x[model.getIndex(demand_vars[k])] > 0.5:
             continue
 
-        path = util.get_path_attributes(subgraphs[k], k, od_pairs, is_active)
+        path = util.get_feasible_path(subgraphs[k], k, od_pairs, is_active)
 
         if not path:
             continue

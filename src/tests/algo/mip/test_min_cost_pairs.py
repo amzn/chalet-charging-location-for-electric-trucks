@@ -60,7 +60,7 @@ class TestMipMinCostPairs(unittest.TestCase):
         mock_xp.assert_called_once()
         mock_constraints.assert_called_once()
 
-    @patch(get_path_module(helper.get_path_attributes), return_value=([0, 1], 5))
+    @patch(get_path_module(helper.get_cheapest_path), return_value=([0, 1], 5))
     @patch(get_path_module(helper.is_candidate), return_value=True)
     @patch(get_path_module(remove_redundancy), return_value=[0, 1])
     def test_construct_initial_solution(self, mock_redundancy, mock_is_candidate, mock_path_attributes):
