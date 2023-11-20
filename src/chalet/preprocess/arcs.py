@@ -80,7 +80,6 @@ class PreprocessArcs(PreprocessData):
 
         return arcs
 
-
     @staticmethod
     def _node_filter_arcs(
         arcs: pd.DataFrame,
@@ -92,7 +91,6 @@ class PreprocessArcs(PreprocessData):
         arcs = arcs.loc[tail_exists & head_exists].copy()
 
         return arcs
-
 
     @staticmethod
     def _range_filter_arcs(

@@ -95,10 +95,9 @@ class PreprocessOdPairs(PreprocessData):
     ) -> list:
         # determine lower bound on full fuel time
         fuel_time_bound = recharge_time(params.min_state, 1, params.charger_power, params.battery_capacity, right=1)
-        num_proc_sub = min(params.num_proc, 8)  # memory bottleneck for parallelization in subgraph generation
 
         subgraphs = generate_subgraphs_for_od_pairs(
-            params, od_pairs, arcs, nodes, time_dist_map, fuel_time_bound, num_proc_sub
+            params, od_pairs, arcs, nodes, time_dist_map, fuel_time_bound, params.num_proc
         )
 
         return subgraphs
