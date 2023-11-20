@@ -3,6 +3,7 @@
 
 """Utility methods for mip max demand and min cost models."""
 import logging
+import random
 import time
 from typing import List
 
@@ -21,13 +22,21 @@ from chalet.model.processed_od_pairs import OdPairs
 
 logger = logging.getLogger(__name__)
 
+PRIMAL_HEURISTIC_PERIOD = 29  # spacing between primal heuristic calls
+ROOT_FRAC_SEP_ROUNDS = PRIMAL_HEURISTIC_PERIOD + 1  # number of fractional separation rounds at root node
+
 
 class BranchAndBoundInfo:
     """Keeps track of information from branch and bound algorithm"""
 
     inequality_count: int = 0  # number of inequalities added during callback
-    solved_nodes: dict = {}  # solved branch-and-bound nodes
+    frac_sep_rounds: dict = {}  # number of performed fractional separation rounds per branch-and-bound node
     separation_time: float = 0.0  # time spent in separation callbacks
+    heuristic_time: float = 0.0  # time spent in primal heuristic
+    checked_subgraphs: dict = {}  # keeps track of subgraphs that were checked in last separation round per node
+
+    def __init__(self, subgraph_indices):
+        self.checked_subgraphs[0] = subgraph_indices
 
 
 def remove_redundancy(solution, nodes, subgraphs, od_pairs, ignore=None):
@@ -164,6 +173,7 @@ def separate_lazy_constraints(
     candidate_arcs = [(u, -u) for u in candidates.index]
     frac_vars = problem.getAttrib("mipinfeas")  # number of fractional variables
     current_node = problem.getAttrib("currentnode")
+    parent_node = problem.getAttrib("parentnode")
 
     x: List = []
     problem.getlpsol(x, None, None, None)
@@ -174,15 +184,41 @@ def separate_lazy_constraints(
 
     y = np.array(x)
 
+    if bb_info.frac_sep_rounds.get(current_node) is None:  # initialize fractional separation counter
+        bb_info.frac_sep_rounds[current_node] = 0
     if frac_vars > 0:
-        if bb_info.solved_nodes.get(current_node):  # single round of fractional separation per branch-and-bound node
+        if (
+            bb_info.frac_sep_rounds.get(current_node) >= 1 and current_node > 1
+        ):  # single round of fractional separation per branch-and-bound node
+            return False
+        elif bb_info.frac_sep_rounds.get(current_node) >= ROOT_FRAC_SEP_ROUNDS:
             return False
         else:
-            bb_info.solved_nodes[current_node] = True
+            bb_info.frac_sep_rounds[current_node] += 1
 
-    cut_count = _separation_algorithm(
+        # determine subset of subgraphs to check for violated inequalities
+        # simple strategy: start from those subgraphs that admitted violated inequalities in previous separation round
+        if bb_info.checked_subgraphs.get(current_node) is not None:
+            subgraphs_to_check = bb_info.checked_subgraphs[current_node]
+        else:
+            subgraphs_to_check = bb_info.checked_subgraphs[parent_node]
+        if len(subgraphs_to_check) == 0:  # if last round checked none, revert to full iteration
+            subgraphs_to_check = subgraph_indices
+
+        # increase subset by randomly sampling 50% additional subgraphs for exploration
+        num_remaining_indexes = len(subgraph_indices) - len(subgraphs_to_check)
+        if num_remaining_indexes > 0:
+            random.seed(current_node + bb_info.frac_sep_rounds[current_node])
+            remaining_indexes = [idx for idx in subgraph_indices if idx not in subgraphs_to_check]
+            subgraphs_to_check += random.sample(
+                remaining_indexes, min(num_remaining_indexes, round(0.5 * len(subgraphs_to_check)))
+            )
+    else:
+        subgraphs_to_check = subgraph_indices
+
+    cut_count, violated_subgraphs = _separation_algorithm(
         frac_vars,
-        subgraph_indices,
+        subgraphs_to_check,
         model,
         x,
         od_pairs,
@@ -196,10 +232,44 @@ def separate_lazy_constraints(
         demand_vars,
     )
 
+    # full separation round if subset did not give any violated inequalities
+    if cut_count == 0 and len(subgraphs_to_check) < len(subgraph_indices):
+        cut_count, violated_subgraphs = _separation_algorithm(
+            frac_vars,
+            subgraph_indices,
+            model,
+            x,
+            od_pairs,
+            subgraphs,
+            nodes,
+            station_vars,
+            cut_count,
+            arc_capacities,
+            problem,
+            y,
+            demand_vars,
+        )
+
+    end_time = time.time()
+    sep_time = end_time - start_time
+    bb_info.checked_subgraphs[current_node] = violated_subgraphs
     bb_info.inequality_count += cut_count
 
-    if cut_count > 0:
-        # if solution is not feasible, propose rounded solution
+    heur_time = 0.0
+    if (current_node + bb_info.frac_sep_rounds[current_node] - 1) % PRIMAL_HEURISTIC_PERIOD == 1:
+        start_time = time.time()
+        _run_primal_heuristic(
+            frac_vars,
+            subgraph_indices,
+            model,
+            od_pairs,
+            subgraphs,
+            nodes,
+            station_vars,
+            y,
+            current_node,
+            demand_vars=None,
+        )
         _set_integer_solution(
             problem,
             od_pairs,
@@ -212,10 +282,52 @@ def separate_lazy_constraints(
             subgraphs,
             demand_vars,
         )
+        end_time = time.time()
+        heur_time = end_time - start_time
 
-    end_time = time.time()
-    bb_info.separation_time += end_time - start_time
+    bb_info.separation_time += sep_time
+    bb_info.heuristic_time += heur_time
     return False
+
+
+def _run_primal_heuristic(
+    frac_vars,
+    subgraph_indices,
+    model,
+    od_pairs,
+    subgraphs,
+    nodes,
+    station_vars,
+    y,
+    current_node,
+    demand_vars=None,
+):
+    is_max_demand = demand_vars is not None
+
+    for k in subgraph_indices:
+        sub_graph = subgraphs[k]
+        orig, dest = od_pairs.at[k, OdPairs.origin_id], od_pairs.at[k, OdPairs.destination_id]
+        max_time, max_road_time = (
+            od_pairs.at[k, OdPairs.max_time],
+            od_pairs.at[k, OdPairs.max_road_time],
+        )
+
+        # primal rounding
+        if is_max_demand:
+            y[model.getIndex(demand_vars[k])] = 0
+        else:
+            _primal_rounding(
+                model,
+                y,
+                frac_vars,
+                nodes,
+                sub_graph,
+                station_vars,
+                orig,
+                dest,
+                max_road_time,
+                max_time,
+            )
 
 
 def _separation_algorithm(
@@ -234,9 +346,7 @@ def _separation_algorithm(
     demand_vars=None,
 ):
     is_max_demand = demand_vars is not None
-    min_demand = EPS_INT
-    if frac_vars == 0:
-        min_demand = 0.5
+    min_demand = 0.5 if frac_vars == 0 else EPS_INT
 
     def is_active(node):
         return is_real(node, nodes) or x[model.getIndex(station_vars[node])] >= 1.0 - EPS_INT
@@ -244,6 +354,8 @@ def _separation_algorithm(
     def is_int(node):
         return is_active(node) or x[model.getIndex(station_vars[node])] <= EPS_INT
 
+    violated_subgraphs = []
+    prev_cut_count = 0
     for k in subgraph_indices:
         if is_max_demand and x[model.getIndex(demand_vars[k])] < min_demand:  # skip if demand is inactive
             continue
@@ -292,8 +404,6 @@ def _separation_algorithm(
                         problem,
                         demand_vars,
                     )
-                else:
-                    continue  # no violated inequalities (skip primal rounding)
         elif frac_vars > 0:
             # fractional separation (pure connectivity only)
             if not path:
@@ -311,24 +421,12 @@ def _separation_algorithm(
                     demand_vars,
                 )
 
-        # primal rounding
-        if is_max_demand:
-            y[model.getIndex(demand_vars[k])] = 0
-        else:
-            _primal_rounding(
-                model,
-                y,
-                frac_vars,
-                nodes,
-                sub_graph,
-                station_vars,
-                orig,
-                dest,
-                max_road_time,
-                max_time,
-            )
+        # save subgraph index if cuts were added
+        if cut_count > prev_cut_count:
+            prev_cut_count = cut_count
+            violated_subgraphs.append(k)
 
-    return cut_count
+    return cut_count, violated_subgraphs
 
 
 def _integer_separation(sub_graph, orig, dest, is_active, index, nodes, station_vars, problem, demand_vars=None):

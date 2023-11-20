@@ -127,7 +127,7 @@ def _pre_check_int_sol(problem, model, station_vars, subgraph_indices, od_pairs,
 def _set_model_attributes_and_solve(
     model, station_vars, subgraph_indices, od_pairs, nodes, subgraphs, candidates, max_run_time, tol
 ):
-    bb_info = util.BranchAndBoundInfo()
+    bb_info = util.BranchAndBoundInfo(subgraph_indices)
 
     def separate_lazy_constraints(problem, data):
         try:
@@ -158,6 +158,11 @@ def _set_model_attributes_and_solve(
 
     logger.info("MIP solver finished.")
     logger.info(f"Added inequalities during callback: {bb_info.inequality_count}")
-    logger.info(f"Total time spent in separation callbacks: {round(bb_info.separation_time, ROUND_OFF_FACTOR)} secs.")
+    logger.info(
+        f"Total time spent in callbacks for separation: {round(bb_info.separation_time, ROUND_OFF_FACTOR)} secs."
+    )
+    logger.info(
+        f"Total time spent in callbacks for primal heuristic: {round(bb_info.heuristic_time, ROUND_OFF_FACTOR)} secs."
+    )
     station_sol = model.getSolution(station_vars)
     return station_sol
