@@ -44,6 +44,8 @@ class PreprocessArcs(PreprocessData):
         )
         arcs = pd.concat([arcs, self_loops], ignore_index=True)
 
+        arcs = self._node_filter_arcs(arcs, nodes)
+
         # Add time-distance map in data
         data[TIME_DISTANCE_MAP] = self._create_time_distance_map(arcs)
 
@@ -77,6 +79,20 @@ class PreprocessArcs(PreprocessData):
         arcs[Arcs.break_time] = transit_time_provider.break_time(arcs[Arcs.time])  # adds column "BREAK_TIME"
 
         return arcs
+
+
+    @staticmethod
+    def _node_filter_arcs(
+        arcs: pd.DataFrame,
+        nodes: pd.DataFrame,
+    ):
+        """Removes all arcs whose endpoints are not contained in the provided nodes."""
+        tail_exists = arcs[Arc.tail_id].isin(nodes[Node.id])
+        head_exists = arcs[Arc.head_id].isin(nodes[Node.id])
+        arcs = arcs.loc[tail_exists & head_exists].copy()
+
+        return arcs
+
 
     @staticmethod
     def _range_filter_arcs(
