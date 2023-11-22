@@ -55,14 +55,13 @@ class TestPreprocessOdPairs:
         expected_changed_data = {
             OdPair.get_file_name(): pd.DataFrame(
                 {
-                    OdPairs.origin_id: [1, 2, 3],
-                    OdPairs.destination_id: [2, 3, 4],
-                    OdPairs.demand: [10.0, 20.0, 70.0],
-                    OdPairs.distance: 3 * [10],
-                    OdPairs.legs: 3 * [1],
-                    OdPairs.max_time: 3 * [40.0],
-                    OdPairs.max_road_time: 3 * [40],
-                    OdPairs.feasible: [True, False, False],
+                    OdPairs.origin_id: [1, 2, 3, 3],
+                    OdPairs.destination_id: [2, 3, 4, 4],
+                    OdPairs.demand: [10.0, 20.0, 30.0, 40.0],
+                    OdPairs.distance: 4 * [10],
+                    OdPairs.max_time: 4 * [40.0],
+                    OdPairs.max_road_time: 4 * [40],
+                    OdPairs.feasible: [True, False, False, False],
                 }
             ),
             UNKNOWN_SITES: pd.Series([5]),
@@ -74,7 +73,7 @@ class TestPreprocessOdPairs:
                     OdPairs.distance: 4 * [10],
                 }
             ),
-            SUB_GRAPHS: [graph1, nx.DiGraph(), nx.DiGraph()],
+            SUB_GRAPHS: [graph1, nx.DiGraph(), nx.DiGraph(), nx.DiGraph()],
         }
 
         pop.preprocess(data)
