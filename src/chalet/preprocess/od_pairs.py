@@ -3,7 +3,6 @@
 
 """Preprocess od pairs."""
 import logging
-from typing import Tuple
 
 import pandas as pd
 
@@ -41,14 +40,14 @@ class PreprocessOdPairs(PreprocessData):
         extract_and_remove_unknown_sites(od_pairs, data)
 
         # start preprocessing of od pairs
-        od_pairs, od_coverage = self._preprocess_od_pairs(
+        od_pairs = self._preprocess_od_pairs(
             od_pairs,
             data[TIME_DISTANCE_MAP],
             data[TRANSIT_TIME_KEY],
             data[Parameters.get_file_name()],
         )
         data[OdPair.get_file_name()] = od_pairs
-        data[OD_COVERAGE] = od_coverage
+        data[OD_COVERAGE] = od_pairs
 
         # create od pair graphs and update the data
         data[SUB_GRAPHS] = self._create_od_pair_graphs(
@@ -65,7 +64,7 @@ class PreprocessOdPairs(PreprocessData):
         time_dist_map: Hashmap,
         transit_time_provider: TransitTime,
         params: Parameters,
-    ) -> Tuple[pd.DataFrame, pd.DataFrame]:
+    ) -> pd.DataFrame:
         """Perform preprocessing routines on OD pairs.
 
         - Remove OD pairs with unknown origin/destination
@@ -75,11 +74,10 @@ class PreprocessOdPairs(PreprocessData):
         add_direct_distances(time_dist_map, od_coverage)
 
         od_coverage = remove_od_with_same_orig_dest(od_coverage)
-        od_pairs = od_coverage.copy()
 
-        add_direct_transit_time_od_pairs(od_pairs, time_dist_map, params, transit_time_provider)
+        add_direct_transit_time_od_pairs(od_coverage, time_dist_map, params, transit_time_provider)
 
-        return od_pairs, od_coverage
+        return od_coverage
 
     def _create_od_pair_graphs(
         self,

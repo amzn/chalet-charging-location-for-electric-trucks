@@ -57,7 +57,7 @@ class PostProcess:
 
     def _process_od_data(self):
         """Process od pairs and od coverage by adding stations and fuel stops information."""
-        pair_stations = calc_station_stats(
+        calc_station_stats(
             self.nodes,
             self.sub_graphs,
             self.od_pairs,
@@ -65,24 +65,7 @@ class PostProcess:
             self.parameters.dest_range,
             self.parameters.truck_range,
         )
-        self.od_pairs.set_index([OdPairs.origin_id, OdPairs.destination_id], drop=False, inplace=True)
-        self.od_coverage[OdPairs.feasible] = False
-        self.od_coverage[OdPairs.covered] = False
-        for idx, row in self.od_coverage.iterrows():
-            orig, dest = row[OdPairs.origin_id], row[OdPairs.destination_id]
-            self.od_coverage.at[idx, OdPairs.feasible] = self.od_pairs.at[(orig, dest), OdPairs.feasible]
-            self.od_coverage.at[idx, OdPairs.covered] = self.od_pairs.at[(orig, dest), OdPairs.covered]
-            if pair_stations.get((orig, dest)) is None:
-                self.od_coverage.at[idx, OdPairs.stations] = ""
-                self.od_coverage.at[idx, OdPairs.fuel_stops] = 0
-            else:
-                station_string_list = [
-                    str(station) for station in self.nodes.loc[pair_stations[(orig, dest)], Nodes.id]
-                ]
-                self.od_coverage.at[idx, OdPairs.stations] = "/".join(station_string_list)
-                self.od_coverage.at[idx, OdPairs.fuel_stops] = len(pair_stations[(orig, dest)])
-        self.od_pairs.reset_index(drop=True, inplace=True)
-        self.od_coverage = self.od_coverage.loc[
+        self.od_coverage = self.od_pairs.loc[
             :,
             (
                 OdPairs.origin_id,

@@ -32,7 +32,7 @@ def test_end2end():
             OdPairs.direct_distance: [376.1148, 349.7771, 206.5998],
             OdPairs.feasible: True,
             OdPairs.stations: ["96/22/293", "96/165/36", "205/293"],
-            OdPairs.fuel_stops: [3.0, 3.0, 2.0],
+            OdPairs.fuel_stops: [3, 3, 2],
         }
     )
     expected_stations = pd.DataFrame(

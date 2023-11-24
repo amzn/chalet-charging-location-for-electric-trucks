@@ -34,7 +34,7 @@ def remove_od_with_same_orig_dest(od_coverage: pd.DataFrame):
     if len(od_coverage) < num_pairs_all:
         logger.info(f"Removed trivial OD pairs (origin = destination). OD pairs remaining: {len(od_coverage)}")
 
-    logger.info("Will report OD coverage based on un aggregated OD pairs.")
+    logger.info("Will report OD coverage based on un-aggregated OD pairs.")
     return od_coverage
 
 

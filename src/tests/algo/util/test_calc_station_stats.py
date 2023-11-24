@@ -42,12 +42,11 @@ def test_calc_station_stats(patch_object):
         {OdPairs.origin_id: [1, 2, 3], OdPairs.destination_id: [2, 3, 4], OdPairs.demand: [10.0, 20.0, 30.0]}
     )
     expected_od_pairs = actual_od_pairs.copy()
+    expected_od_pairs[OdPairs.stations] = ["5/6", "7/8", ""]
+    expected_od_pairs[OdPairs.fuel_stops] = [2, 2, 0]
 
-    actual = util.calc_station_stats(
-        actual_nodes, subgraphs, actual_od_pairs, battery_capacity, terminal_range, truck_range
-    )
+    util.calc_station_stats(actual_nodes, subgraphs, actual_od_pairs, battery_capacity, terminal_range, truck_range)
 
-    assert actual == {(1, 2): [5, 6], (2, 3): [7, 8], (3, 4): []}
     assert_frame_equal(actual_nodes, expected_nodes)
     assert_frame_equal(actual_od_pairs, expected_od_pairs)
     patch_object.assert_has_calls([call(subgraphs[i], i, actual_od_pairs, ANY) for i in range(3)])

@@ -71,6 +71,9 @@ class TestPreprocessOdPairs:
                     OdPairs.destination_id: [2, 3, 4, 4],
                     OdPairs.demand: [10.0, 20.0, 30.0, 40.0],
                     OdPairs.distance: 4 * [10],
+                    OdPairs.max_time: 4 * [40.0],
+                    OdPairs.max_road_time: 4 * [40],
+                    OdPairs.feasible: [True, False, False, False],
                 }
             ),
             SUB_GRAPHS: [graph1, nx.DiGraph(), nx.DiGraph(), nx.DiGraph()],

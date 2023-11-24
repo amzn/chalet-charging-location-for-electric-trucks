@@ -743,13 +743,13 @@ def calc_station_stats(
     truck_range: float,
 ):
     """Attributes to each station data about its usage in terms of demand.
+    Attaches for each OD pair the list and number of visited stations.
 
-    :return: Visited stations for each OD pair (dict: (orig_id, dest_id) -> list of stations)
+    :return:
     """
     nodes[Nodes.energy] = 0.0
     kwh_per_km = battery_capacity / truck_range
     nodes[Nodes.demand] = 0.0
-    visited_stations = dict()
     num_pairs = len(od_pairs)
 
     def is_candidate(u):
@@ -761,6 +761,8 @@ def calc_station_stats(
     def filter_func(u):
         return is_real_node(u) or not is_candidate(u)
 
+    od_pairs[OdPairs.stations] = ""
+    od_pairs[OdPairs.fuel_stops] = 0
     for k in range(num_pairs):
         path = get_feasible_path(subgraphs[k], k, od_pairs, filter_func)
         if not path:
@@ -788,9 +790,8 @@ def calc_station_stats(
             if nodes.at[next_node, Nodes.type] == NodeType.SITE:
                 nodes.at[node, Nodes.energy] += terminal_range * kwh_per_km
 
-        visited_stations[(od_pairs.at[k, OdPairs.origin_id], od_pairs.at[k, OdPairs.destination_id])] = station_list
+        od_pairs.at[k, OdPairs.stations] = "/".join(str(station) for station in station_list)
+        od_pairs.at[k, OdPairs.fuel_stops] = len(station_list)
 
     nodes[Nodes.energy] = np.around(nodes[Nodes.energy], decimals=1)
     nodes[Nodes.demand] = np.around(nodes[Nodes.demand], decimals=2)
-
-    return visited_stations

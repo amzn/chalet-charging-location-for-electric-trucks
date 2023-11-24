@@ -41,8 +41,12 @@ class TestPostProcess(unittest.TestCase):
             {
                 OdPairs.origin_id: [10, 20, 30],
                 OdPairs.destination_id: [10, 20, 30],
+                OdPairs.demand: [1, 1, 1],
+                OdPairs.distance: [0, 0, 0],
                 OdPairs.feasible: [True, True, True],
                 OdPairs.covered: [1, 2, 4],
+                OdPairs.stations: ["a", "b", "c"],
+                OdPairs.fuel_stops: [1, 2, 3],
             }
         )
         od_coverage = pd.DataFrame(
@@ -109,8 +113,6 @@ class TestPostProcess(unittest.TestCase):
             {
                 "column1": [10],
                 "column2": [20],
-                OdPairs.feasible: [False],
-                OdPairs.covered: [False],
             }
         )
 
@@ -121,8 +123,8 @@ class TestPostProcess(unittest.TestCase):
                 OdPairs.demand: [1, 1, 1],
                 OdPairs.direct_distance: [0, 0, 0],
                 OdPairs.feasible: [True, True, True],
-                OdPairs.stations: ["", "", ""],
-                OdPairs.fuel_stops: [0, 0, 0],
+                OdPairs.stations: ["a", "b", "c"],
+                OdPairs.fuel_stops: [1, 2, 3],
             }
         )
         expected_export_context = {
