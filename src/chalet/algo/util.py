@@ -303,6 +303,10 @@ def _run_primal_heuristic(
     demand_vars=None,
 ):
     is_max_demand = demand_vars is not None
+    demand_var_threshold = 0.5 if frac_vars == 0 else EPS_INT
+
+    def is_active(node):
+        return is_real(node, nodes) or y[model.getIndex(station_vars[node])] >= 1.0 - EPS_INT
 
     for k in subgraph_indices:
         sub_graph = subgraphs[k]
@@ -314,7 +318,13 @@ def _run_primal_heuristic(
 
         # primal rounding
         if is_max_demand:
-            y[model.getIndex(demand_vars[k])] = 0
+            if y[model.getIndex(demand_vars[k])] < demand_var_threshold:
+                continue
+            path = csp.time_feasible_path(
+                nx.subgraph_view(sub_graph, filter_node=is_active), orig, dest, max_road_time, max_time
+            )
+            if not path:
+                y[model.getIndex(demand_vars[k])] = 0
         else:
             _primal_rounding(
                 model,
