@@ -74,6 +74,7 @@ class TestMipMaxDemandPairs(unittest.TestCase):
             CANDIDATES,
             5.0,
             0.0,
+            2.0,
         )
         model.getSolution.assert_called()
         model.solve.assert_called_once()

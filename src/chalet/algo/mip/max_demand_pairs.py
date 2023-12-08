@@ -61,6 +61,7 @@ def max_demand_pairs(
         candidates,
         max_run_time,
         tol,
+        cost_budget,
     )
     covered_demand += np.sum(od_pairs.loc[subgraph_indices, OdPairs.demand] * np.array(list(demand_sol.values())))
 
@@ -134,6 +135,7 @@ def _set_model_attributes_and_solve(
     candidates,
     max_run_time,
     tol,
+    cost_budget,
 ):
     bb_info = util.BranchAndBoundInfo(subgraph_indices)
 
@@ -149,7 +151,8 @@ def _set_model_attributes_and_solve(
                 subgraph_indices,
                 subgraphs,
                 bb_info,
-                demand_vars,
+                demand_vars=demand_vars,
+                cost_budget=cost_budget,
             )
         except Exception:
             logger.error(f"Problem in callback: {traceback.format_exc()}")

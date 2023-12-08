@@ -132,7 +132,7 @@ def _set_model_attributes_and_solve(
     def separate_lazy_constraints(problem, data):
         try:
             return util.separate_lazy_constraints(
-                problem, model, od_pairs, nodes, station_vars, candidates, subgraph_indices, subgraphs, bb_info, None
+                problem, model, od_pairs, nodes, station_vars, candidates, subgraph_indices, subgraphs, bb_info
             )
         except Exception:
             logger.error(f"Problem in callback: {traceback.format_exc()}")
