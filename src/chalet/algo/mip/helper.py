@@ -132,6 +132,7 @@ def set_model_controls(model, max_run_time, tol):
     """Set control attributes of mip model."""
     model.setControl("maxtime", max_run_time)
     model.setControl("miprelstop", tol)
+    model.setControl("optimalitytol", 1e-08)  # negative reduced cost tolerance in simplex algorithm
     model.setControl("presolve", 0)
     model.setControl("lplogstyle", 0)
     model.setControl("lplog", 1000)

@@ -75,12 +75,12 @@ class TestMipHelper(unittest.TestCase):
     def test_set_model_controls_max_demand(self):
         model = Mock()
         helper.set_model_controls(model, 10.0, 0.0)
-        self.assertEqual(model.setControl.call_count, 8)
+        self.assertEqual(model.setControl.call_count, 9)
 
     def test_set_model_controls_min_cost(self):
         model = Mock()
         helper.set_model_controls(model, 10.0, 0.0)
-        self.assertEqual(model.setControl.call_count, 8)
+        self.assertEqual(model.setControl.call_count, 9)
 
     @patch(get_path_module(util.check_solution), return_value=(5.0, 10.0))
     def test_verify_model_output(self, mock_check_sol):
