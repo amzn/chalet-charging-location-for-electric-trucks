@@ -29,7 +29,7 @@ def test_calc_station_stats(patch_object):
     actual_nodes[Nodes.cost] = [0] * len(actual_nodes)
 
     expected_nodes = actual_nodes.copy()
-    expected_nodes[Nodes.energy] = [0, 0, 0, 0, 243, 243, 18, 18]
+    expected_nodes[Nodes.energy] = [0.0, 0.0, 0.0, 0.0, 243.0, 243.0, 18.0, 18.0]
     expected_nodes[Nodes.demand] = [0.0, 0.0, 0.0, 0.0, 10.0, 10.0, 20.0, 20.0]
     graph1 = nx.DiGraph()
     graph1.add_edges_from([(1, 5), (5, 6), (6, 2)], **{Nodes.distance: 10.0})
