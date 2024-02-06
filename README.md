@@ -17,37 +17,42 @@ In contrast to [1], CHALET introduces a transit time constraint that takes into 
 The main requirements are:
 *	Python (>=3.6, <=3.9)
 *	Pip (>=19.3)
-*	Xpress (8.14.4)
+*	Xpress (>=9.2.5)
 
 A complete list of package dependencies can be found in ``setup.cfg``.
-
-The installation should be done in a [Python virtual environment](https://docs.python.org/3/library/venv.html).
-This [user guide](https://packaging.python.org/guides/installing-using-pip-and-virtual-environments/) can help with that.
 
 
 #### Xpress
 CHALET depends on [FICO Xpress Optimization](https://www.fico.com/en/products/fico-xpress-optimization) to solve the integer program.
 The free community license that comes with the installation of Xpress restricts the problem sizes that can be solved.
-For full functionality, it may be necessary to provide an unrestricted license, which can be found in the official [Xpress licensing options](https://www.fico.com/en/fico-xpress-trial-and-licensing-options).
-It should be noted that, as of Feb 2023, Xpress does not support ARM CPUs (e.g. Mac with M1 chip).
-A possible remedy is to use Python in an Intel-64 emulation mode (executable python3-intel64 available from Python 3.9.5 onwards).
+For full functionality, it may be necessary to provide an unrestricted license.
 
 ## Installation
 
+The installation instructions below are for UNIX systems, on Windows the commands should be substituted accordingly.
+More information about Python virtual environments can be found in this [user guide](https://packaging.python.org/guides/installing-using-pip-and-virtual-environments/).
+
 ### Repository Setup
-To install the code, the repository needs to be cloned through the following command:
+To install the code, clone the repository via ssh:
 
 ```shell
 git clone git@github.com:amzn/chalet-charging-location-for-electric-trucks.git
+```
+or https:
+```shell
+git clone https://github.com/amzn/chalet-charging-location-for-electric-trucks.git
+```
+Change directory into the project folder:
+```
 cd chalet-charging-location-for-electric-trucks
 ```
-A virtual environment is created in a folder `venv` by running:
+A virtual environment is created in a folder `.venv` by running:
 ```shell
-python -m venv venv
+python -m venv .venv
 ```
-Subsequent commands should be run after activating the environment:
+Subsequent commands should be run after activating the virtual environment:
 ```shell
-source venv/bin/activate
+source .venv/bin/activate
 ```
 The pip install commands installs requirements defined in `setup.cfg` in the `install_requires` section.
 The `[dev]` and `[testing]` options additionally install requirements defined in the `[options.extras_require]` section.

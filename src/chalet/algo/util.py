@@ -676,7 +676,7 @@ def calc_station_stats(
 
         visited_stations[(od_pairs.at[k, OdPairs.origin_id], od_pairs.at[k, OdPairs.destination_id])] = station_list
 
-    nodes[Nodes.energy] = np.ceil(nodes[Nodes.energy]).astype(int)
+    nodes[Nodes.energy] = np.around(nodes[Nodes.energy], decimals=1)
     nodes[Nodes.demand] = np.around(nodes[Nodes.demand], decimals=2)
 
     return visited_stations

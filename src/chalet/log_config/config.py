@@ -32,7 +32,7 @@ def set_mip_log_file(xpress_model, log_dir):
     """
     Initializes clean log file of Xpress model in given directory.
     """
-    mip_log_file = f"{log_dir}/mip.log"
+    mip_log_file = os.path.join(log_dir, "mip.log")
     if os.path.exists(mip_log_file):
         os.remove(mip_log_file)
     xpress_model.setlogfile(mip_log_file)
