@@ -363,7 +363,9 @@ def _primal_heuristic(
         elif is_max_demand:
             y[model.getIndex(demand_vars[k])] = 0
 
-    y[y < 1.0 - EPS_INT] = 0  # remove fractional entries
+    # set all station variable values
+    for (key, val) in station_sol_dict.items():
+        y[model.getIndex(station_vars[key])] = val
 
 
 def _separation_algorithm(
