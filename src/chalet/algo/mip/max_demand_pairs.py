@@ -104,11 +104,8 @@ def _construct_initial_solution(model, candidates, nodes, od_pairs, subgraph_ind
     sol: List = []
     init_cost = 0
     init_demand = 0
-    min_cost = nodes.loc[candidates.index, Nodes.cost].min()
     sorted_index = od_pairs.loc[subgraph_indices].sort_values(OdPairs.demand, ascending=False).index
     for index in sorted_index:
-        if init_cost + min_cost > cost_budget:
-            break
         demand = od_pairs.at[index, OdPairs.demand]
         path, path_cost = helper.get_path_attributes(od_pairs, index, subgraphs, nodes, sol)
         if init_cost + path_cost > cost_budget:
