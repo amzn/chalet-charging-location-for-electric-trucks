@@ -266,8 +266,7 @@ def separate_lazy_constraints(
     bb_info.inequality_count += cut_count
 
     heur_time = 0.0
-    if (cut_count > 0 and
-            (current_node + bb_info.frac_sep_rounds[current_node] - 1) % PRIMAL_HEURISTIC_PERIOD == 1):
+    if cut_count > 0 and (current_node + bb_info.frac_sep_rounds[current_node] - 1) % PRIMAL_HEURISTIC_PERIOD == 1:
         start_time = time.time()
         _primal_heuristic(
             subgraph_indices,
@@ -364,7 +363,7 @@ def _primal_heuristic(
             y[model.getIndex(demand_vars[k])] = 0
 
     # set all station variable values
-    for (key, val) in station_sol_dict.items():
+    for key, val in station_sol_dict.items():
         y[model.getIndex(station_vars[key])] = val
 
 
