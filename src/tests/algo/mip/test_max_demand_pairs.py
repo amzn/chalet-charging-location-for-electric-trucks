@@ -85,7 +85,7 @@ class TestMipMaxDemandPairs(unittest.TestCase):
         max_demand._construct_initial_solution(model, CANDIDATES, NODES, OD_PAIRS, [0], SUB_GRAPHS, 10.0)
         model.addmipsol.assert_called_with([1, 1, 1])
 
-    @patch(get_path_module(helper.get_path_attributes), return_value=([0, 1], 5.0))
+    @patch(get_path_module(helper.get_path_attributes), return_value=([0, 1], 11.0))
     @patch(get_path_module(helper.is_candidate), return_value=True)
     def test_construct_initial_solution_with_higher_min_cost(self, mock_is_candidate, mock_path_attributes):
         model = Mock()
