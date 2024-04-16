@@ -113,7 +113,7 @@ class TestMipMaxDemandPairs(unittest.TestCase):
         problem.getlpsol.side_effect = mock_lpsol
         model.getIndex.return_value = 0
         max_demand._check_int_sol(problem, model, DEMAND_VARS, OD_PAIRS, NODES, STATION_VARS, [0], SUB_GRAPHS)
-        problem.addmipsol.assert_called_once()
+        problem.loadmipsol.assert_called_once()
 
     @patch(get_path_module(util.get_path_attributes), return_value=None)
     def test_check_int_sol_without_path(self, mock_path_attributes):
@@ -126,7 +126,7 @@ class TestMipMaxDemandPairs(unittest.TestCase):
         problem.getlpsol.side_effect = mock_lpsol
         model.getIndex.return_value = 0
         max_demand._check_int_sol(problem, model, DEMAND_VARS, OD_PAIRS, NODES, STATION_VARS, [0], SUB_GRAPHS)
-        problem.addmipsol.assert_not_called()
+        problem.loadmipsol.assert_not_called()
 
     def test_pre_check_int_sol_without_soltype(self):
         model = Mock()

@@ -250,7 +250,7 @@ def _pre_check_int_sol(
             continue
 
     if infeasible:
-        problem.addmipsol(x)
+        problem.loadmipsol(x)  # outside of optnode callback need to use this method instead of addmipsol
         return True, None
 
     return False, cutoff
@@ -282,4 +282,4 @@ def _check_int_sol(problem, model, demand_vars, od_pairs, nodes, station_vars, s
         x[model.getIndex(demand_vars[k])] = 1
 
     if sub_optimal:
-        problem.addmipsol(x)
+        problem.loadmipsol(x)
