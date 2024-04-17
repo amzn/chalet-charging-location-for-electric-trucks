@@ -20,3 +20,6 @@ class OdPairs:
     stations = "STATIONS"
     fuel_stops = "FUEL_STOPS"
     direct_distance = "DIRECT_DISTANCE"
+    direct_time = "DIRECT_TIME"
+    route_distance = "ROUTE_DISTANCE"
+    route_time = "ROUTE_TIME"

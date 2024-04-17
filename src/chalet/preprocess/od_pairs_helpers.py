@@ -22,9 +22,11 @@ from chalet.model.transit_time import TransitTime
 logger = logging.getLogger(__name__)
 
 
-def add_direct_distances(time_dist_map: Hashmap, od_coverage: pd.DataFrame):
+def add_direct_distance_and_time(time_dist_map: Hashmap, od_coverage: pd.DataFrame):
     direct_distances = time_dist_map.get(od_coverage[[OdPair.origin_id, OdPair.destination_id]])[:, 1]
     od_coverage[OdPairs.distance] = direct_distances
+    direct_times = time_dist_map.get(od_coverage[[OdPair.origin_id, OdPair.destination_id]])[:, 0]
+    od_coverage[OdPairs.direct_time] = direct_times
 
 
 def remove_od_with_same_orig_dest(od_coverage: pd.DataFrame):

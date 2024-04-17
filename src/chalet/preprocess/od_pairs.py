@@ -15,7 +15,7 @@ from chalet.model.input.od_pair import OdPair
 from chalet.model.parameters import Parameters
 from chalet.model.transit_time import TransitTime
 from chalet.preprocess.od_pairs_helpers import (
-    add_direct_distances,
+    add_direct_distance_and_time,
     add_direct_transit_time_od_pairs,
     extract_and_remove_unknown_sites,
     generate_subgraphs_for_od_pairs,
@@ -71,7 +71,7 @@ class PreprocessOdPairs(PreprocessData):
         - Remove trivial OD pairs (origin = destination)
         - Add node IDs, direct distances and transit time bounds
         """
-        add_direct_distances(time_dist_map, od_coverage)
+        add_direct_distance_and_time(time_dist_map, od_coverage)
 
         od_coverage = remove_od_with_same_orig_dest(od_coverage)
 

@@ -48,7 +48,7 @@ class PostProcess:
         is_station = (self.nodes[Nodes.type] == NodeType.STATION).values
         sol_nodes = self.nodes.loc[
             self.nodes[Nodes.real] & is_station,
-            [Nodes.id, Nodes.type, Nodes.demand],
+            [Nodes.id, Nodes.type, Nodes.demand, Nodes.energy],
         ]
         self.export_context[self.stations_file] = sol_nodes
 
@@ -72,9 +72,12 @@ class PostProcess:
                 OdPairs.destination_id,
                 OdPairs.demand,
                 OdPairs.distance,
+                OdPairs.direct_time,
                 OdPairs.feasible,
                 OdPairs.stations,
                 OdPairs.fuel_stops,
+                OdPairs.route_distance,
+                OdPairs.route_time,
             ),
         ]
         self.od_coverage.rename(columns={OdPairs.distance: OdPairs.direct_distance}, inplace=True)

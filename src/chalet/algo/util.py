@@ -17,6 +17,7 @@ from chalet.algo.csp import arc_road_time as road_time_func
 from chalet.algo.csp import arc_time as time_func
 from chalet.common.constants import CAPACITY, EPS, EPS_INT, MIP_BEST_OBJ_VAL, MIP_OBJ_VAL
 from chalet.model.input.node_type import NodeType
+from chalet.model.processed_arcs import Arcs
 from chalet.model.processed_nodes import Nodes
 from chalet.model.processed_od_pairs import OdPairs
 
@@ -763,12 +764,20 @@ def calc_station_stats(
 
     od_pairs[OdPairs.stations] = ""
     od_pairs[OdPairs.fuel_stops] = 0
+    od_pairs[OdPairs.route_distance] = float("inf")
+    od_pairs[OdPairs.route_time] = float("inf")
     for k in range(num_pairs):
+        demand = od_pairs.at[k, OdPairs.demand]
         path = get_feasible_path(subgraphs[k], k, od_pairs, filter_func)
         if not path:
             continue
 
         station_list = []
+        # initialize distance and time tracker
+        first_node, second_node = path[0], path[1]
+        first_arc_attrs = subgraphs[k].edges[first_node, second_node]
+        route_dist = first_arc_attrs[Arcs.distance]
+        route_time = first_arc_attrs[Arcs.time] + first_arc_attrs[Arcs.fuel_time] + first_arc_attrs[Arcs.break_time]
 
         for n in range(1, len(path) - 1):  # only consider station nodes
             node = path[n]
@@ -778,20 +787,27 @@ def calc_station_stats(
             station_list.append(node)
 
             # OD pair data
-            nodes.at[node, Nodes.demand] += od_pairs.at[k, Nodes.demand]
+            nodes.at[node, Nodes.demand] += demand
 
             if path[n + 1] < 0:  # if station has a dummy node
                 out_node, next_node = path[n + 1], path[n + 2]
             else:
                 out_node, next_node = node, path[n + 1]
             # charged energy
-            dist = subgraphs[k].edges[out_node, next_node][Nodes.distance]
-            nodes.at[node, Nodes.energy] += dist * kwh_per_km
+            arc_attrs = subgraphs[k].edges[out_node, next_node]
+            dist = arc_attrs[Arcs.distance]
+            nodes.at[node, Nodes.energy] += dist * kwh_per_km * demand
             if nodes.at[next_node, Nodes.type] == NodeType.SITE:
-                nodes.at[node, Nodes.energy] += terminal_range * kwh_per_km
+                nodes.at[node, Nodes.energy] += terminal_range * kwh_per_km * demand
+
+            # update time and distance tracker
+            route_dist += dist
+            route_time += arc_attrs[Arcs.time] + arc_attrs[Arcs.fuel_time] + arc_attrs[Arcs.break_time]
 
         od_pairs.at[k, OdPairs.stations] = "/".join(str(station) for station in station_list)
         od_pairs.at[k, OdPairs.fuel_stops] = len(station_list)
+        od_pairs.at[k, OdPairs.route_distance] = route_dist
+        od_pairs.at[k, OdPairs.route_time] = route_time
 
     nodes[Nodes.energy] = np.around(nodes[Nodes.energy], decimals=1)
     nodes[Nodes.demand] = np.around(nodes[Nodes.demand], decimals=2)

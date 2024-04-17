@@ -35,6 +35,7 @@ class TestPostProcess(unittest.TestCase):
                 Nodes.latitude: [1, 2, 3],
                 Nodes.longitude: [1, 2, 3],
                 Nodes.demand: [10, 10, 10],
+                Nodes.energy: [100, 100, 100],
             }
         )
         od_pairs = pd.DataFrame(
@@ -47,6 +48,9 @@ class TestPostProcess(unittest.TestCase):
                 OdPairs.covered: [1, 2, 4],
                 OdPairs.stations: ["a", "b", "c"],
                 OdPairs.fuel_stops: [1, 2, 3],
+                OdPairs.direct_time: [1.0, 1.0, 1.0],
+                OdPairs.route_distance: [1.0, 1.0, 1.0],
+                OdPairs.route_time: [1.0, 1.0, 1.0],
             }
         )
         od_coverage = pd.DataFrame(
@@ -105,7 +109,7 @@ class TestPostProcess(unittest.TestCase):
     def test_postprocess__validate_outputs(self):
         """Validate expected outputs."""
         post_pros = self.valid_obj_post_process
-        expected_nodes = pd.DataFrame({Nodes.id: [], Nodes.type: [], Nodes.demand: []})
+        expected_nodes = pd.DataFrame({Nodes.id: [], Nodes.type: [], Nodes.demand: [], Nodes.energy: []})
         expected_nodes = expected_nodes.astype(np.int64)
         expected_nodes[Nodes.type] = expected_nodes[Nodes.type].astype(object)
 
@@ -122,9 +126,12 @@ class TestPostProcess(unittest.TestCase):
                 OdPairs.destination_id: [10, 20, 30],
                 OdPairs.demand: [1, 1, 1],
                 OdPairs.direct_distance: [0, 0, 0],
+                OdPairs.direct_time: [1.0, 1.0, 1.0],
                 OdPairs.feasible: [True, True, True],
                 OdPairs.stations: ["a", "b", "c"],
                 OdPairs.fuel_stops: [1, 2, 3],
+                OdPairs.route_distance: [1.0, 1.0, 1.0],
+                OdPairs.route_time: [1.0, 1.0, 1.0],
             }
         )
         expected_export_context = {

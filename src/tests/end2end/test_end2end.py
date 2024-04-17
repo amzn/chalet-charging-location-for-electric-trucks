@@ -30,9 +30,12 @@ def test_end2end():
             OdPairs.destination_id: [1, 5, 4],
             OdPairs.demand: 1.0,
             OdPairs.direct_distance: [376.1148, 349.7771, 206.5998],
+            OdPairs.direct_time: [360.5444, 341.4999, 186.7688],
             OdPairs.feasible: True,
             OdPairs.stations: ["96/22/293", "96/165/36", "205/293"],
             OdPairs.fuel_stops: [3, 3, 2],
+            OdPairs.route_distance: [396.3077, 350.7448, 212.2264],
+            OdPairs.route_time: [520.1167, 471.7635, 260.4830],
         }
     )
     expected_stations = pd.DataFrame(
@@ -40,6 +43,7 @@ def test_end2end():
             Nodes.id: [22, 36, 96, 165, 205, 293],
             Nodes.type: "STATION",
             Nodes.demand: [1.0, 1.0, 2.0, 1.0, 1.0, 2.0],
+            Nodes.energy: [208.3, 225.0, 510.0, 252.0, 183.3, 490.3],
         },
     )
     expected_unknown_sites = pd.DataFrame({0: []}, columns=Index(["0"]))
