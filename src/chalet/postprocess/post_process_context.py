@@ -81,3 +81,22 @@ class PostProcess:
             ),
         ]
         self.od_coverage.rename(columns={OdPairs.distance: OdPairs.direct_distance}, inplace=True)
+        self.od_coverage.loc[
+            :,
+            (
+                OdPairs.direct_distance,
+                OdPairs.direct_time,
+                OdPairs.route_distance,
+                OdPairs.route_time,
+            ),
+        ] = self.od_coverage.loc[
+            :,
+            (
+                OdPairs.direct_distance,
+                OdPairs.direct_time,
+                OdPairs.route_distance,
+                OdPairs.route_time,
+            ),
+        ].round(
+            decimals=2
+        )

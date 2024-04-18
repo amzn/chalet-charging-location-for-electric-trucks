@@ -809,5 +809,5 @@ def calc_station_stats(
         od_pairs.at[k, OdPairs.route_distance] = route_dist
         od_pairs.at[k, OdPairs.route_time] = route_time
 
-    nodes[Nodes.energy] = np.around(nodes[Nodes.energy], decimals=1)
+    nodes[Nodes.energy] = np.around(nodes[Nodes.energy], decimals=1)  # kWH
     nodes[Nodes.demand] = np.around(nodes[Nodes.demand], decimals=2)
