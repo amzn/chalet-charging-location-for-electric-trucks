@@ -110,7 +110,7 @@ def _add_separator(
         separator_set.update(separator)
 
 
-def get_path_attributes(od_pairs, index, subgraphs, nodes, sol_set):
+def get_cheapest_path(od_pairs, index, subgraphs, nodes, sol_set):
     orig, dest = od_pairs.at[index, OdPairs.origin_id], od_pairs.at[index, OdPairs.destination_id]
     max_time, max_road_time = (
         od_pairs.at[index, OdPairs.max_time],
@@ -132,6 +132,7 @@ def set_model_controls(model, max_run_time, tol):
     """Set control attributes of mip model."""
     model.setControl("maxtime", max_run_time)
     model.setControl("miprelstop", tol)
+    model.setControl("optimalitytol", 1e-08)  # negative reduced cost tolerance in simplex algorithm
     model.setControl("presolve", 0)
     model.setControl("lplogstyle", 0)
     model.setControl("lplog", 1000)

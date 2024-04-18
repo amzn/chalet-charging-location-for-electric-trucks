@@ -8,7 +8,7 @@ import networkx as nx
 import pandas as pd
 
 from chalet.algo import csp
-from chalet.algo.util import get_path_attributes
+from chalet.algo.util import get_feasible_path
 from chalet.model.processed_od_pairs import OdPairs
 
 
@@ -28,7 +28,7 @@ def test_get_path_attributes(patch_object):
     )
 
     empty_graph = nx.DiGraph()
-    actual = get_path_attributes(empty_graph, 0, od_pairs, Any)
+    actual = get_feasible_path(empty_graph, 0, od_pairs, Any)
 
     assert actual == 10
     patch_object.assert_called_with(ANY, 2, 69, 200.0, 100.0)

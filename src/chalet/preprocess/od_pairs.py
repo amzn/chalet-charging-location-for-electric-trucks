@@ -3,7 +3,6 @@
 
 """Preprocess od pairs."""
 import logging
-from typing import Tuple
 
 import pandas as pd
 
@@ -16,9 +15,8 @@ from chalet.model.input.od_pair import OdPair
 from chalet.model.parameters import Parameters
 from chalet.model.transit_time import TransitTime
 from chalet.preprocess.od_pairs_helpers import (
-    add_direct_distances,
+    add_direct_distance_and_time,
     add_direct_transit_time_od_pairs,
-    aggregate_identical_od_pairs,
     extract_and_remove_unknown_sites,
     generate_subgraphs_for_od_pairs,
     remove_od_with_same_orig_dest,
@@ -42,14 +40,14 @@ class PreprocessOdPairs(PreprocessData):
         extract_and_remove_unknown_sites(od_pairs, data)
 
         # start preprocessing of od pairs
-        od_pairs, od_coverage = self._preprocess_od_pairs(
+        od_pairs = self._preprocess_od_pairs(
             od_pairs,
             data[TIME_DISTANCE_MAP],
             data[TRANSIT_TIME_KEY],
             data[Parameters.get_file_name()],
         )
         data[OdPair.get_file_name()] = od_pairs
-        data[OD_COVERAGE] = od_coverage
+        data[OD_COVERAGE] = od_pairs
 
         # create od pair graphs and update the data
         data[SUB_GRAPHS] = self._create_od_pair_graphs(
@@ -66,24 +64,20 @@ class PreprocessOdPairs(PreprocessData):
         time_dist_map: Hashmap,
         transit_time_provider: TransitTime,
         params: Parameters,
-    ) -> Tuple[pd.DataFrame, pd.DataFrame]:
+    ) -> pd.DataFrame:
         """Perform preprocessing routines on OD pairs.
 
         - Remove OD pairs with unknown origin/destination
         - Remove trivial OD pairs (origin = destination)
-        - Aggregate demand of identical OD pairs
         - Add node IDs, direct distances and transit time bounds
         """
-        add_direct_distances(time_dist_map, od_coverage)
+        add_direct_distance_and_time(time_dist_map, od_coverage)
 
         od_coverage = remove_od_with_same_orig_dest(od_coverage)
-        od_pairs = od_coverage.copy()
 
-        aggregate_identical_od_pairs(od_pairs)
+        add_direct_transit_time_od_pairs(od_coverage, time_dist_map, params, transit_time_provider)
 
-        add_direct_transit_time_od_pairs(od_pairs, time_dist_map, params, transit_time_provider)
-
-        return od_pairs, od_coverage
+        return od_coverage
 
     def _create_od_pair_graphs(
         self,
@@ -95,10 +89,9 @@ class PreprocessOdPairs(PreprocessData):
     ) -> list:
         # determine lower bound on full fuel time
         fuel_time_bound = recharge_time(params.min_state, 1, params.charger_power, params.battery_capacity, right=1)
-        num_proc_sub = min(params.num_proc, 8)  # memory bottleneck for parallelization in subgraph generation
 
         subgraphs = generate_subgraphs_for_od_pairs(
-            params, od_pairs, arcs, nodes, time_dist_map, fuel_time_bound, num_proc_sub
+            params, od_pairs, arcs, nodes, time_dist_map, fuel_time_bound, params.num_proc
         )
 
         return subgraphs

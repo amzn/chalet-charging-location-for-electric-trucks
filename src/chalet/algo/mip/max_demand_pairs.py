@@ -61,6 +61,7 @@ def max_demand_pairs(
         candidates,
         max_run_time,
         tol,
+        cost_budget,
     )
     covered_demand += np.sum(od_pairs.loc[subgraph_indices, OdPairs.demand] * np.array(list(demand_sol.values())))
 
@@ -104,13 +105,10 @@ def _construct_initial_solution(model, candidates, nodes, od_pairs, subgraph_ind
     sol: List = []
     init_cost = 0
     init_demand = 0
-    min_cost = nodes.loc[candidates.index, Nodes.cost].min()
     sorted_index = od_pairs.loc[subgraph_indices].sort_values(OdPairs.demand, ascending=False).index
     for index in sorted_index:
-        if init_cost + min_cost > cost_budget:
-            break
         demand = od_pairs.at[index, OdPairs.demand]
-        path, path_cost = helper.get_path_attributes(od_pairs, index, subgraphs, nodes, sol)
+        path, path_cost = helper.get_cheapest_path(od_pairs, index, subgraphs, nodes, sol)
         if init_cost + path_cost > cost_budget:
             continue
 
@@ -137,8 +135,9 @@ def _set_model_attributes_and_solve(
     candidates,
     max_run_time,
     tol,
+    cost_budget,
 ):
-    bb_info = util.BranchAndBoundInfo()
+    bb_info = util.BranchAndBoundInfo(subgraph_indices)
 
     def separate_lazy_constraints(problem, data):
         try:
@@ -152,7 +151,8 @@ def _set_model_attributes_and_solve(
                 subgraph_indices,
                 subgraphs,
                 bb_info,
-                demand_vars,
+                demand_vars=demand_vars,
+                cost_budget=cost_budget,
             )
         except Exception:
             logger.error(f"Problem in callback: {traceback.format_exc()}")
@@ -191,7 +191,12 @@ def _set_model_attributes_and_solve(
 
     logger.info("MIP solver finished.")
     logger.info(f"Added inequalities during callback: {bb_info.inequality_count}")
-    logger.info(f"Total time spent in separation callbacks: {round(bb_info.separation_time, ROUND_OFF_FACTOR)} secs.")
+    logger.info(
+        f"Total time spent in callbacks for separation: {round(bb_info.separation_time, ROUND_OFF_FACTOR)} secs."
+    )
+    logger.info(
+        f"Total time spent in callbacks for primal heuristic: {round(bb_info.heuristic_time, ROUND_OFF_FACTOR)} secs."
+    )
     demand_sol = model.getSolution(demand_vars)
     station_sol = model.getSolution(station_vars)
 
@@ -235,7 +240,7 @@ def _pre_check_int_sol(
         if obj < best_obj:
             return True, None
 
-        path = util.get_path_attributes(subgraphs[k], k, od_pairs, sol_filter)
+        path = util.get_feasible_path(subgraphs[k], k, od_pairs, sol_filter)
         demand = od_pairs.at[k, OdPairs.demand]
 
         if not path:
@@ -245,7 +250,7 @@ def _pre_check_int_sol(
             continue
 
     if infeasible:
-        problem.addmipsol(x)
+        problem.loadmipsol(x)  # outside of optnode callback need to use this method instead of addmipsol
         return True, None
 
     return False, cutoff
@@ -268,7 +273,7 @@ def _check_int_sol(problem, model, demand_vars, od_pairs, nodes, station_vars, s
         if x[model.getIndex(demand_vars[k])] > 0.5:
             continue
 
-        path = util.get_path_attributes(subgraphs[k], k, od_pairs, is_active)
+        path = util.get_feasible_path(subgraphs[k], k, od_pairs, is_active)
 
         if not path:
             continue
@@ -277,4 +282,4 @@ def _check_int_sol(problem, model, demand_vars, od_pairs, nodes, station_vars, s
         x[model.getIndex(demand_vars[k])] = 1
 
     if sub_optimal:
-        problem.addmipsol(x)
+        problem.loadmipsol(x)

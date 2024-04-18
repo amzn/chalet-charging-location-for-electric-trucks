@@ -14,6 +14,21 @@ DEMAND_VARS = UtilData.demand_vars
 CANDIDATES = UtilData.candidates
 
 
+def return_attribute(attrib: str):
+    if attrib == "mipinfeas":
+        return 1
+    elif attrib == "currentnode":
+        return 1
+    elif attrib == "parentnode":
+        return 0
+    elif attrib == "mipobjval":
+        return 1
+    elif attrib == "mipbestobjval":
+        return 1
+    else:
+        return None
+
+
 class TestUtil:
     @patch.object(util.csp, "shortest_path")
     @patch.object(util.csp, "time_feasible_cheapest_path")
@@ -31,12 +46,13 @@ class TestUtil:
 
         problem.getlpsol.side_effect = mock_lpsol
         model.getIndex.return_value = 0
-        problem.getAttrib.return_value = 1
-        bb_info = util.BranchAndBoundInfo()
+        problem.getAttrib.side_effect = return_attribute
+        subgraph_indices = [0]
+        bb_info = util.BranchAndBoundInfo(subgraph_indices)
         mock_shortest_path.return_value = ([0, 1], 10.0)
         mock_cheapest_path.return_value = ([0, 1], 10.0)
         util.separate_lazy_constraints(
-            problem, model, OD_PAIRS, NODES, STATION_VARS, CANDIDATES, [0], SUB_GRAPHS, bb_info
+            problem, model, OD_PAIRS, NODES, STATION_VARS, CANDIDATES, subgraph_indices, SUB_GRAPHS, bb_info
         )
 
         mock_shortest_path.assert_called()
@@ -46,7 +62,7 @@ class TestUtil:
 
     @patch.object(util, "_separation_algorithm")
     def test_separate_lazy_constraints_with_demand_vars(self, mock_separation_algo):
-        mock_separation_algo.return_value = 1
+        mock_separation_algo.return_value = (1, [0])
         problem = Mock()
         model = Mock()
 
@@ -55,11 +71,20 @@ class TestUtil:
 
         problem.getlpsol.side_effect = mock_lpsol
         model.getIndex.return_value = 0
-        problem.getAttrib.return_value = 1
-        bb_info = util.BranchAndBoundInfo()
-        bb_info.solved_nodes = {}
+        problem.getAttrib.side_effect = return_attribute
+        subgraph_indices = [0]
+        bb_info = util.BranchAndBoundInfo(subgraph_indices)
         util.separate_lazy_constraints(
-            problem, model, OD_PAIRS, NODES, STATION_VARS, CANDIDATES, [0], SUB_GRAPHS, bb_info, DEMAND_VARS
+            problem,
+            model,
+            OD_PAIRS,
+            NODES,
+            STATION_VARS,
+            CANDIDATES,
+            subgraph_indices,
+            SUB_GRAPHS,
+            bb_info,
+            DEMAND_VARS,
         )
 
         mock_separation_algo.assert_called()
@@ -74,11 +99,21 @@ class TestUtil:
 
         problem.getlpsol.side_effect = mock_lpsol
         model.getIndex.return_value = 0
-        problem.getAttrib.return_value = 1
-        bb_info = util.BranchAndBoundInfo()
-        bb_info.solved_nodes[1] = True
+        problem.getAttrib.side_effect = return_attribute
+        subgraph_indices = [0]
+        bb_info = util.BranchAndBoundInfo(subgraph_indices)
+        bb_info.frac_sep_rounds[1] = 100  # large enough so no further separation is called
         check = util.separate_lazy_constraints(
-            problem, model, OD_PAIRS, NODES, STATION_VARS, CANDIDATES, [0], SUB_GRAPHS, bb_info, DEMAND_VARS
+            problem,
+            model,
+            OD_PAIRS,
+            NODES,
+            STATION_VARS,
+            CANDIDATES,
+            subgraph_indices,
+            SUB_GRAPHS,
+            bb_info,
+            DEMAND_VARS,
         )
 
         mock_separation_algo.assert_not_called()
@@ -100,14 +135,15 @@ class TestUtil:
 
         problem.getlpsol.side_effect = mock_lpsol
         model.getIndex.return_value = 0
-        problem.getAttrib.return_value = 1
+        problem.getAttrib.side_effect = return_attribute
         mock_shortest_path.return_value = ([], 1.0)
         mock_redundancy.return_value = [0]
         mock_time_separation.return_value = 1
-        bb_info = util.BranchAndBoundInfo()
-        bb_info.solved_nodes = {}
+        subgraph_indices = [0]
+        bb_info = util.BranchAndBoundInfo(subgraph_indices)
+        bb_info.frac_sep_rounds[1] = 0
         util.separate_lazy_constraints(
-            problem, model, OD_PAIRS, NODES, STATION_VARS, CANDIDATES, [0], SUB_GRAPHS, bb_info
+            problem, model, OD_PAIRS, NODES, STATION_VARS, CANDIDATES, subgraph_indices, SUB_GRAPHS, bb_info
         )
 
         mock_shortest_path.assert_called()

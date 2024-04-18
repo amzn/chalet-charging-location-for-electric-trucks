@@ -3,6 +3,7 @@
 
 """Utility methods for mip max demand and min cost models."""
 import logging
+import random
 import time
 from typing import List
 
@@ -16,18 +17,27 @@ from chalet.algo.csp import arc_road_time as road_time_func
 from chalet.algo.csp import arc_time as time_func
 from chalet.common.constants import CAPACITY, EPS, EPS_INT, MIP_BEST_OBJ_VAL, MIP_OBJ_VAL
 from chalet.model.input.node_type import NodeType
+from chalet.model.processed_arcs import Arcs
 from chalet.model.processed_nodes import Nodes
 from chalet.model.processed_od_pairs import OdPairs
 
 logger = logging.getLogger(__name__)
+
+PRIMAL_HEURISTIC_PERIOD = 29  # spacing between primal heuristic calls
+ROOT_FRAC_SEP_ROUNDS = PRIMAL_HEURISTIC_PERIOD + 1  # number of fractional separation rounds at root node
 
 
 class BranchAndBoundInfo:
     """Keeps track of information from branch and bound algorithm"""
 
     inequality_count: int = 0  # number of inequalities added during callback
-    solved_nodes: dict = {}  # solved branch-and-bound nodes
+    frac_sep_rounds: dict = {}  # number of performed fractional separation rounds per branch-and-bound node
     separation_time: float = 0.0  # time spent in separation callbacks
+    heuristic_time: float = 0.0  # time spent in primal heuristic
+    checked_subgraphs: dict = {}  # keeps track of subgraphs that were checked in last separation round per node
+
+    def __init__(self, subgraph_indices):
+        self.checked_subgraphs[0] = subgraph_indices
 
 
 def remove_redundancy(solution, nodes, subgraphs, od_pairs, ignore=None):
@@ -62,7 +72,7 @@ def remove_redundancy(solution, nodes, subgraphs, od_pairs, ignore=None):
 
     paths = np.empty(len(subgraphs), dtype=object)
     for k in subgraph_indices:
-        path = get_path_attributes(subgraphs[k], k, od_pairs, is_real_filter)
+        path = get_feasible_path(subgraphs[k], k, od_pairs, is_real_filter)
         if not path:
             continue
         paths[k] = path
@@ -95,7 +105,7 @@ def _update_substitute_paths(
             if paths[k] is None or node not in paths[k]:
                 continue
 
-            path = get_path_attributes(subgraphs[k], k, od_pairs, filter_func)
+            path = get_feasible_path(subgraphs[k], k, od_pairs, filter_func)
             if not path:
                 remove = False
                 break
@@ -125,7 +135,7 @@ def check_pair_coverage(nodes, subgraphs, od_pairs):
         return is_dummy(u) or nodes.at[u, Nodes.real] or not is_candidate(u)
 
     for k in range(num_pairs):
-        path = get_path_attributes(subgraphs[k], k, od_pairs, filter_func)
+        path = get_feasible_path(subgraphs[k], k, od_pairs, filter_func)
         if not path:
             continue
 
@@ -153,7 +163,17 @@ def remove_redundant_stations(nodes, subgraphs, od_pairs):
 
 
 def separate_lazy_constraints(
-    problem, model, od_pairs, nodes, station_vars, candidates, subgraph_indices, subgraphs, bb_info, demand_vars=None
+    problem,
+    model,
+    od_pairs,
+    nodes,
+    station_vars,
+    candidates,
+    subgraph_indices,
+    subgraphs,
+    bb_info,
+    demand_vars=None,
+    cost_budget=float("inf"),
 ):
     """
     Separates inequalities at the current node of the branch and bound tree.
@@ -164,6 +184,7 @@ def separate_lazy_constraints(
     candidate_arcs = [(u, -u) for u in candidates.index]
     frac_vars = problem.getAttrib("mipinfeas")  # number of fractional variables
     current_node = problem.getAttrib("currentnode")
+    parent_node = problem.getAttrib("parentnode")
 
     x: List = []
     problem.getlpsol(x, None, None, None)
@@ -174,15 +195,41 @@ def separate_lazy_constraints(
 
     y = np.array(x)
 
+    if bb_info.frac_sep_rounds.get(current_node) is None:  # initialize fractional separation counter
+        bb_info.frac_sep_rounds[current_node] = 0
     if frac_vars > 0:
-        if bb_info.solved_nodes.get(current_node):  # single round of fractional separation per branch-and-bound node
+        if (
+            bb_info.frac_sep_rounds.get(current_node) >= 1 and current_node > 1
+        ):  # single round of fractional separation per branch-and-bound node
+            return False
+        elif bb_info.frac_sep_rounds.get(current_node) >= ROOT_FRAC_SEP_ROUNDS:
             return False
         else:
-            bb_info.solved_nodes[current_node] = True
+            bb_info.frac_sep_rounds[current_node] += 1
 
-    cut_count = _separation_algorithm(
+        # determine subset of subgraphs to check for violated inequalities
+        # simple strategy: start from those subgraphs that admitted violated inequalities in previous separation round
+        if bb_info.checked_subgraphs.get(current_node) is not None:
+            subgraphs_to_check = bb_info.checked_subgraphs[current_node]
+        else:
+            subgraphs_to_check = bb_info.checked_subgraphs[parent_node]
+        if len(subgraphs_to_check) == 0:  # if last round checked none, revert to full iteration
+            subgraphs_to_check = subgraph_indices
+
+        # increase subset by randomly sampling 50% additional subgraphs for exploration
+        num_remaining_indexes = len(subgraph_indices) - len(subgraphs_to_check)
+        if num_remaining_indexes > 0:
+            random.seed(current_node + bb_info.frac_sep_rounds[current_node])
+            remaining_indexes = [idx for idx in subgraph_indices if idx not in subgraphs_to_check]
+            subgraphs_to_check += random.sample(
+                remaining_indexes, min(num_remaining_indexes, round(0.5 * len(subgraphs_to_check)))
+            )
+    else:
+        subgraphs_to_check = subgraph_indices
+
+    cut_count, violated_subgraphs = _separation_algorithm(
         frac_vars,
-        subgraph_indices,
+        subgraphs_to_check,
         model,
         x,
         od_pairs,
@@ -193,13 +240,47 @@ def separate_lazy_constraints(
         arc_capacities,
         problem,
         y,
-        demand_vars,
+        demand_vars=demand_vars,
     )
 
+    # full separation round if subset did not give any violated inequalities
+    if cut_count == 0 and len(subgraphs_to_check) < len(subgraph_indices):
+        cut_count, violated_subgraphs = _separation_algorithm(
+            frac_vars,
+            subgraph_indices,
+            model,
+            x,
+            od_pairs,
+            subgraphs,
+            nodes,
+            station_vars,
+            cut_count,
+            arc_capacities,
+            problem,
+            y,
+            demand_vars=demand_vars,
+        )
+
+    end_time = time.time()
+    sep_time = end_time - start_time
+    bb_info.checked_subgraphs[current_node] = violated_subgraphs
     bb_info.inequality_count += cut_count
 
-    if cut_count > 0:
-        # if solution is not feasible, propose rounded solution
+    heur_time = 0.0
+    if cut_count > 0 and (current_node + bb_info.frac_sep_rounds[current_node] - 1) % PRIMAL_HEURISTIC_PERIOD == 1:
+        start_time = time.time()
+        _primal_heuristic(
+            subgraph_indices,
+            model,
+            od_pairs,
+            subgraphs,
+            nodes,
+            station_vars,
+            y,
+            current_node,
+            demand_vars=demand_vars,
+            cost_budget=cost_budget,
+        )
         _set_integer_solution(
             problem,
             od_pairs,
@@ -210,12 +291,81 @@ def separate_lazy_constraints(
             nodes,
             y,
             subgraphs,
-            demand_vars,
+            demand_vars=demand_vars,
+        )
+        end_time = time.time()
+        heur_time = end_time - start_time
+
+    bb_info.separation_time += sep_time
+    bb_info.heuristic_time += heur_time
+    return False
+
+
+def _primal_heuristic(
+    subgraph_indices,
+    model,
+    od_pairs,
+    subgraphs,
+    nodes,
+    station_vars,
+    y,
+    current_node,
+    demand_vars=None,
+    cost_budget=float("inf"),
+):
+    is_max_demand = demand_vars is not None
+
+    if is_max_demand:
+        covered_demands = [y[model.getIndex(demand_vars[k])] * od_pairs.at[k, OdPairs.demand] for k in subgraph_indices]
+        # sort OD pairs based on (partially) satisfied demand
+        subgraph_indices = [
+            k for k, _ in sorted(zip(subgraph_indices, covered_demands), key=lambda pair: pair[1], reverse=True)
+        ]
+
+    total_cost = 0.0
+    station_sol_dict = dict(zip(station_vars.keys(), [0] * len(station_vars)))
+    for k in subgraph_indices:
+        sub_graph = subgraphs[k]
+        orig, dest = od_pairs.at[k, OdPairs.origin_id], od_pairs.at[k, OdPairs.destination_id]
+        max_time, max_road_time = (
+            od_pairs.at[k, OdPairs.max_time],
+            od_pairs.at[k, OdPairs.max_road_time],
         )
 
-    end_time = time.time()
-    bb_info.separation_time += end_time - start_time
-    return False
+        candidate_nodes = [u for u in sub_graph if is_candidate(u, nodes)]
+        reduced_costs = [
+            nodes.at[u, Nodes.cost] * max(0.0, 1.0 - y[model.getIndex(station_vars[u])]) for u in candidate_nodes
+        ]
+        nx.set_node_attributes(sub_graph, dict(zip(candidate_nodes, reduced_costs)), Nodes.cost)
+        path, _ = csp.time_feasible_cheapest_path(sub_graph, orig, dest, max_road_time, max_time)
+        nx.set_node_attributes(
+            sub_graph,
+            dict(zip(candidate_nodes, nodes.loc[candidate_nodes, Nodes.cost])),
+            Nodes.cost,
+        )
+
+        # compute marginal path cost
+        path_cost = 0.0
+        new_stations = []
+        for u in path:
+            if is_candidate(u, nodes) and not station_sol_dict[u]:
+                station_sol_dict[u] = 1
+                path_cost += nodes.at[u, Nodes.cost]
+                new_stations.append(u)
+
+        # check path feasibility and save solution
+        if path and total_cost + path_cost <= cost_budget:
+            total_cost += path_cost
+            for u in new_stations:
+                y[model.getIndex(station_vars[u])] = 1
+            if is_max_demand:
+                y[model.getIndex(demand_vars[k])] = 1
+        elif is_max_demand:
+            y[model.getIndex(demand_vars[k])] = 0
+
+    # set all station variable values
+    for key, val in station_sol_dict.items():
+        y[model.getIndex(station_vars[key])] = val
 
 
 def _separation_algorithm(
@@ -234,9 +384,7 @@ def _separation_algorithm(
     demand_vars=None,
 ):
     is_max_demand = demand_vars is not None
-    min_demand = EPS_INT
-    if frac_vars == 0:
-        min_demand = 0.5
+    min_demand = 0.5 if frac_vars == 0 else EPS_INT
 
     def is_active(node):
         return is_real(node, nodes) or x[model.getIndex(station_vars[node])] >= 1.0 - EPS_INT
@@ -244,6 +392,8 @@ def _separation_algorithm(
     def is_int(node):
         return is_active(node) or x[model.getIndex(station_vars[node])] <= EPS_INT
 
+    violated_subgraphs = []
+    prev_cut_count = 0
     for k in subgraph_indices:
         if is_max_demand and x[model.getIndex(demand_vars[k])] < min_demand:  # skip if demand is inactive
             continue
@@ -292,8 +442,6 @@ def _separation_algorithm(
                         problem,
                         demand_vars,
                     )
-                else:
-                    continue  # no violated inequalities (skip primal rounding)
         elif frac_vars > 0:
             # fractional separation (pure connectivity only)
             if not path:
@@ -311,24 +459,12 @@ def _separation_algorithm(
                     demand_vars,
                 )
 
-        # primal rounding
-        if is_max_demand:
-            y[model.getIndex(demand_vars[k])] = 0
-        else:
-            _primal_rounding(
-                model,
-                y,
-                frac_vars,
-                nodes,
-                sub_graph,
-                station_vars,
-                orig,
-                dest,
-                max_road_time,
-                max_time,
-            )
+        # save subgraph index if cuts were added
+        if cut_count > prev_cut_count:
+            prev_cut_count = cut_count
+            violated_subgraphs.append(k)
 
-    return cut_count
+    return cut_count, violated_subgraphs
 
 
 def _integer_separation(sub_graph, orig, dest, is_active, index, nodes, station_vars, problem, demand_vars=None):
@@ -525,32 +661,6 @@ def _fractional_separation(
         return 0
 
 
-def _primal_rounding(model, y, frac_vars, nodes, sub_graph, station_vars, orig, dest, max_road_time, max_time):
-    if frac_vars > 0:
-        candidate_nodes = [u for u in sub_graph if not is_real(u, nodes)]
-        reduced_costs = [
-            nodes.at[u, Nodes.cost] * max(0.0, 1.0 - y[model.getIndex(station_vars[u])]) for u in candidate_nodes
-        ]
-        nx.set_node_attributes(sub_graph, dict(zip(candidate_nodes, reduced_costs)), Nodes.cost)
-        cpath, path_cost = csp.time_feasible_cheapest_path(sub_graph, orig, dest, max_road_time, max_time)
-        nx.set_node_attributes(
-            sub_graph,
-            dict(zip(candidate_nodes, nodes.loc[candidate_nodes, Nodes.cost])),
-            Nodes.cost,
-        )
-        path_candidate_nodes = [u for u in cpath if not is_real(u, nodes)]
-        for u in path_candidate_nodes:
-            y[model.getIndex(station_vars[u])] = 1
-    else:
-        active_nodes = [u for u in sub_graph if not is_real(u, nodes) and y[model.getIndex(station_vars[u])] > 0.5]
-        nx.set_node_attributes(sub_graph, dict(zip(active_nodes, [0] * len(active_nodes))), Nodes.cost)
-        cpath, path_cost = csp.time_feasible_cheapest_path(sub_graph, orig, dest, max_road_time, max_time)
-        nx.set_node_attributes(sub_graph, dict(zip(active_nodes, nodes.loc[active_nodes, Nodes.cost])), Nodes.cost)
-        new_nodes = [u for u in cpath if not is_real(u, nodes) and y[model.getIndex(station_vars[u])] < 0.5]
-        for u in new_nodes:
-            y[model.getIndex(station_vars[u])] = 1
-
-
 def _set_integer_solution(
     problem, od_pairs, subgraph_indices, model, station_vars, candidates, nodes, y, subgraphs, demand_vars=None
 ):
@@ -572,7 +682,7 @@ def _set_integer_solution(
             problem.addmipsol(y)
 
 
-def get_path_attributes(sub_graph, index, od_pairs, filter_func):
+def get_feasible_path(sub_graph, index, od_pairs, filter_func):
     """Get a time feasible path based on road time and max road time bounds."""
     orig, dest = od_pairs.at[index, OdPairs.origin_id], od_pairs.at[index, OdPairs.destination_id]
     max_time, max_road_time = (
@@ -593,6 +703,11 @@ def is_dummy(node):
 def is_real(node, nodes):
     """Check if node is real or not."""
     return is_dummy(node) or nodes.at[node, Nodes.cost] < EPS
+
+
+def is_candidate(node, nodes):
+    """Check if node is a candidate station or not."""
+    return not is_real(node, nodes)
 
 
 def check_solution(nodes, subgraphs, od_pairs, claimed_demand, claimed_cost):
@@ -629,13 +744,13 @@ def calc_station_stats(
     truck_range: float,
 ):
     """Attributes to each station data about its usage in terms of demand.
+    Attaches for each OD pair the list and number of visited stations.
 
-    :return: Visited stations for each OD pair (dict: (orig_id, dest_id) -> list of stations)
+    :return:
     """
     nodes[Nodes.energy] = 0.0
     kwh_per_km = battery_capacity / truck_range
     nodes[Nodes.demand] = 0.0
-    visited_stations = dict()
     num_pairs = len(od_pairs)
 
     def is_candidate(u):
@@ -647,12 +762,22 @@ def calc_station_stats(
     def filter_func(u):
         return is_real_node(u) or not is_candidate(u)
 
+    od_pairs[OdPairs.stations] = ""
+    od_pairs[OdPairs.fuel_stops] = 0
+    od_pairs[OdPairs.route_distance] = float("inf")
+    od_pairs[OdPairs.route_time] = float("inf")
     for k in range(num_pairs):
-        path = get_path_attributes(subgraphs[k], k, od_pairs, filter_func)
+        demand = od_pairs.at[k, OdPairs.demand]
+        path = get_feasible_path(subgraphs[k], k, od_pairs, filter_func)
         if not path:
             continue
 
         station_list = []
+        # initialize distance and time tracker
+        first_node, second_node = path[0], path[1]
+        first_arc_attrs = subgraphs[k].edges[first_node, second_node]
+        route_dist = first_arc_attrs[Arcs.distance]
+        route_time = first_arc_attrs[Arcs.time] + first_arc_attrs[Arcs.fuel_time] + first_arc_attrs[Arcs.break_time]
 
         for n in range(1, len(path) - 1):  # only consider station nodes
             node = path[n]
@@ -662,21 +787,27 @@ def calc_station_stats(
             station_list.append(node)
 
             # OD pair data
-            nodes.at[node, Nodes.demand] += od_pairs.at[k, Nodes.demand]
+            nodes.at[node, Nodes.demand] += demand
 
             if path[n + 1] < 0:  # if station has a dummy node
                 out_node, next_node = path[n + 1], path[n + 2]
             else:
                 out_node, next_node = node, path[n + 1]
             # charged energy
-            dist = subgraphs[k].edges[out_node, next_node][Nodes.distance]
-            nodes.at[node, Nodes.energy] += dist * kwh_per_km
+            arc_attrs = subgraphs[k].edges[out_node, next_node]
+            dist = arc_attrs[Arcs.distance]
+            nodes.at[node, Nodes.energy] += dist * kwh_per_km * demand
             if nodes.at[next_node, Nodes.type] == NodeType.SITE:
-                nodes.at[node, Nodes.energy] += terminal_range * kwh_per_km
+                nodes.at[node, Nodes.energy] += terminal_range * kwh_per_km * demand
 
-        visited_stations[(od_pairs.at[k, OdPairs.origin_id], od_pairs.at[k, OdPairs.destination_id])] = station_list
+            # update time and distance tracker
+            route_dist += dist
+            route_time += arc_attrs[Arcs.time] + arc_attrs[Arcs.fuel_time] + arc_attrs[Arcs.break_time]
 
-    nodes[Nodes.energy] = np.around(nodes[Nodes.energy], decimals=1)
+        od_pairs.at[k, OdPairs.stations] = "/".join(str(station) for station in station_list)
+        od_pairs.at[k, OdPairs.fuel_stops] = len(station_list)
+        od_pairs.at[k, OdPairs.route_distance] = route_dist
+        od_pairs.at[k, OdPairs.route_time] = route_time
+
+    nodes[Nodes.energy] = np.around(nodes[Nodes.energy], decimals=1)  # kWH
     nodes[Nodes.demand] = np.around(nodes[Nodes.demand], decimals=2)
-
-    return visited_stations

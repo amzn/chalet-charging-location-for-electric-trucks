@@ -96,8 +96,8 @@ def get_stub_data() -> Dict:
         {
             Arc.tail_id: tail_id,
             Arc.head_id: head_id,
-            Arc.time: 16 * [10],
-            Arc.distance: 16 * [10],
+            Arc.time: 16 * [10.0],
+            Arc.distance: 16 * [10.0],
         }
     )
 
@@ -255,8 +255,8 @@ def get_stub_time_dist_map() -> Hashmap:
         {
             Arc.tail_id: tail_id,
             Arc.head_id: head_id,
-            Arc.time: 16 * [10],
-            Arc.distance: 16 * [10],
+            Arc.time: 16 * [10.0],
+            Arc.distance: 16 * [10.0],
         }
     )
 
