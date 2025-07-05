@@ -33,8 +33,11 @@ def min_cost_pairs(nodes, subgraphs, od_pairs, tol, max_run_time, log_dir):
     if candidates.empty:
         return covered_demand, 0
 
-    station_vars = xp.vars(candidates.index, name=STATION, vartype=xp.binary)
-    model = _build_model(candidates, nodes, subgraphs, od_pairs, subgraph_indices, station_vars, log_dir)
+    model = xp.problem()
+    station_vars = {}
+    for i in candidates.index:
+        station_vars[i] = model.addVariable(name=f"{STATION}_{i}", vartype=xp.binary)
+    model = _build_model(candidates, nodes, subgraphs, od_pairs, subgraph_indices, station_vars, model, log_dir)
 
     # fast heuristic for starting solution
     _construct_initial_solution(model, candidates, nodes, od_pairs, subgraph_indices, subgraphs, station_vars)
@@ -61,12 +64,10 @@ def min_cost_pairs(nodes, subgraphs, od_pairs, tol, max_run_time, log_dir):
     return covered_demand, total_cost
 
 
-def _build_model(candidates, nodes, subgraphs, od_pairs, subgraph_indices, station_vars, log_dir):
+def _build_model(candidates, nodes, subgraphs, od_pairs, subgraph_indices, station_vars, model, log_dir):
     logger.info("Building MIP model to minimize cost.")
 
-    model = xp.problem()
     set_mip_log_file(model, log_dir)
-    model.addVariable(station_vars)
     helper.initialize_separator_constraints(
         model, nodes, subgraphs, od_pairs, subgraph_indices, station_vars, pair_vars=None
     )
@@ -86,9 +87,14 @@ def _construct_initial_solution(model, candidates, nodes, od_pairs, subgraph_ind
         sol_set.update(candidate_nodes)
 
     init_sol = util.remove_redundancy(sol_set, nodes, subgraphs, od_pairs)
-    init_sol_vec = np.zeros(len(candidates))
-    init_sol_index = [model.getIndex(station_vars[u]) for u in init_sol]
-    init_sol_vec[init_sol_index] = 1
+    n_vars = len(station_vars)
+    init_sol_vec = np.zeros(n_vars)
+    var_to_pos = {var: idx for idx, var in enumerate(station_vars.values())}
+
+    for node in init_sol:
+        var = station_vars[node]
+        pos = var_to_pos[var]
+        init_sol_vec[pos] = 1
     init_cost = np.sum(
         [init_sol_vec[model.getIndex(station_vars[i])] * nodes.at[i, Nodes.cost] for i in candidates.index]
     )
@@ -97,8 +103,7 @@ def _construct_initial_solution(model, candidates, nodes, od_pairs, subgraph_ind
 
 
 def _pre_check_int_sol(problem, model, station_vars, subgraph_indices, od_pairs, nodes, subgraphs, cutoff):
-    x: List = []
-    problem.getlpsol(x, None, None, None)
+    x = problem.getCallbackSolution()
 
     def sol_filter(u):
         return not helper.is_candidate(u, nodes) or x[model.getIndex(station_vars[u])] > 0.5

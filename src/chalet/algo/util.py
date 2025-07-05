@@ -186,8 +186,7 @@ def separate_lazy_constraints(
     current_node = problem.getAttrib("currentnode")
     parent_node = problem.getAttrib("parentnode")
 
-    x: List = []
-    problem.getlpsol(x, None, None, None)
+    x = problem.getCallbackSolution()
     cut_count = 0
 
     candidate_vals = [x[model.getIndex(station_vars[u])] for u in candidates.index]
