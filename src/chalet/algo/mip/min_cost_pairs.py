@@ -34,9 +34,7 @@ def min_cost_pairs(nodes, subgraphs, od_pairs, tol, max_run_time, log_dir):
         return covered_demand, 0
 
     model = xp.problem()
-    station_vars = {}
-    for i in candidates.index:
-        station_vars[i] = model.addVariable(name=f"{STATION}_{i}", vartype=xp.binary)
+    station_vars = model.addVariables(candidates.index, name=STATION, vartype=xp.binary)
     model = _build_model(candidates, nodes, subgraphs, od_pairs, subgraph_indices, station_vars, model, log_dir)
 
     # fast heuristic for starting solution
@@ -87,14 +85,9 @@ def _construct_initial_solution(model, candidates, nodes, od_pairs, subgraph_ind
         sol_set.update(candidate_nodes)
 
     init_sol = util.remove_redundancy(sol_set, nodes, subgraphs, od_pairs)
-    n_vars = len(station_vars)
-    init_sol_vec = np.zeros(n_vars)
-    var_to_pos = {var: idx for idx, var in enumerate(station_vars.values())}
-
-    for node in init_sol:
-        var = station_vars[node]
-        pos = var_to_pos[var]
-        init_sol_vec[pos] = 1
+    init_sol_vec = np.zeros(len(candidates))
+    init_sol_index = [model.getIndex(station_vars[u]) for u in init_sol]
+    init_sol_vec[init_sol_index] = 1
     init_cost = np.sum(
         [init_sol_vec[model.getIndex(station_vars[i])] * nodes.at[i, Nodes.cost] for i in candidates.index]
     )
