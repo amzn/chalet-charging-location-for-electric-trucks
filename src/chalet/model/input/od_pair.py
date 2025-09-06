@@ -2,7 +2,7 @@
 # SPDX-License-Identifier: Apache-2.0
 
 """Origin Destination Pair in a network."""
-from pandera import Column, DataFrameSchema
+from pandera.pandas import Column, DataFrameSchema
 
 from chalet.model.base_csv_file import BaseCsvFile
 
