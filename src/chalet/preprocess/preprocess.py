@@ -1,4 +1,5 @@
 """Preprocessing module."""
+
 import logging
 from abc import ABC, ABCMeta, abstractmethod
 

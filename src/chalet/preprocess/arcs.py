@@ -162,7 +162,7 @@ class PreprocessArcs(PreprocessData):
         tail_is_station = (nodes.loc[arcs[Arc.tail_id], Node.type] == NodeType.STATION).values
         head_is_site = (nodes.loc[arcs[Arc.head_id], Node.type] == NodeType.SITE).values
 
-        arcs[Arcs.fuel_time] = 0
+        arcs[Arcs.fuel_time] = 0.0
 
         def charge_time_to_station(dist):
             return recharge_time(buffer, buffer + dist / truck_range, charger_power, battery_capacity)

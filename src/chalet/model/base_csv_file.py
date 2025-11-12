@@ -4,7 +4,7 @@
 """Base csv file."""
 from abc import abstractmethod
 
-from pandera import DataFrameSchema
+from pandera.pandas import DataFrameSchema
 
 from chalet.model.base_file import BaseFile
 

@@ -29,7 +29,7 @@ class TestMipHelper(unittest.TestCase):
             MipData.od_pairs_feasible, NODES, SUB_GRAPHS
         )
         self.assertListEqual(indices, [0])
-        np.alltrue(candidates == [0, 1, 2])
+        np.all(candidates == [0, 1, 2])
         self.assertEqual(demand, 0)
         mock_pair_coverage.assert_called_once()
 

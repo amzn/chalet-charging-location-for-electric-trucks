@@ -2,7 +2,7 @@
 # SPDX-License-Identifier: Apache-2.0
 
 """Arc between two nodes in a network graph."""
-from pandera import Check, Column, DataFrameSchema
+from pandera.pandas import Check, Column, DataFrameSchema
 
 from chalet.model.base_csv_file import BaseCsvFile
 

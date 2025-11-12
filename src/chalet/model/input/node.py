@@ -2,7 +2,7 @@
 # SPDX-License-Identifier: Apache-2.0
 
 """Node in a network graph."""
-from pandera import Check, Column, DataFrameSchema
+from pandera.pandas import Check, Column, DataFrameSchema
 
 from chalet.model.base_csv_file import BaseCsvFile
 from chalet.model.input.node_type import NodeType
